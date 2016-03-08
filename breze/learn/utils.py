@@ -97,7 +97,8 @@ def tile_raster_images(X, img_shape, tile_shape, tile_spacing=(0, 0),
         if output_pixel_vals:
             out_array = np.zeros((out_shape[0], out_shape[1], 4), dtype='uint8')
         else:
-            out_array = np.zeros((out_shape[0], out_shape[1], 4), dtype=X.dtype)
+            #out_array = np.zeros((out_shape[0], out_shape[1], 4), dtype=X.dtype)
+            out_array = np.zeros((out_shape[0], out_shape[1], 4), dtype=theano.config.floatX)
 
         #colors default to 0, alpha defaults to 1 (opaque)
         if output_pixel_vals:

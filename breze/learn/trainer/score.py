@@ -57,7 +57,7 @@ class MinibatchScore(object):
         score = 0.
         seen_samples = 0.
         for batch in batches:
-            this_samples = batch[0].shape[self.sample_dims[0]]
+            this_samples = int(batch[0].shape[self.sample_dims[0]])
             score += f_score(*batch) * this_samples
             seen_samples += this_samples
         return ma.scalar(score / seen_samples)

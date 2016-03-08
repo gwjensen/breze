@@ -298,6 +298,7 @@ class SupervisedModel(Model, BrezeWrapperBase):
 
         args = self._make_args(X, Z, imp_weight)
         opt = self._make_optimizer(self._f_loss, self._f_dloss, args, info=info_opt)
+        print "X.shape in iter_fit(): " + str(X.shape)
 
         for i, info in enumerate(opt):
             yield info

@@ -7,7 +7,11 @@ import numpy as np
 import theano
 import theano.tensor as T
 import theano.sandbox.cuda
+import theano.sandbox.cuda.basic_ops
 import theano.sandbox.cuda.var
+
+from sys import getsizeof
+
 
 from breze.utils import dictlist
 
@@ -157,9 +161,50 @@ def cpu_expr_to_gpu_nested(inpts, unsafe=False):
 
 
 def garray_to_cudandarray_nested(lst):
+    #print "sizeof(lst): " + str(getsizeof(lst))
+    for idx,i in enumerate(lst):
+        lst[idx].shape = tuple(int(q) for q in i.shape)
     lst_flat = flatten(lst)
+    #print "len(lst_flat[0]): " + str(len(lst_flat[0]))
+    #print "len(lst_flat[1]): " + str(len(lst_flat[1]))
+    #print "len(lst_flat[2]): " + str(len(lst_flat[2]))
+
+    #print "Size of vector in garray_to_cudandarray_nested:" + str(len(lst))
+    #print "Contents lst_flat[0]: " + str(lst[0].shape)
+    #print "Contents lst_flat[1]: " + str(lst[1].shape)
+    #print "Contents lst_flat[2]: " + str(lst[2].shape)
+
+
+    #lst_flat = [gput.garray_to_cudandarray(i) for i in lst_flat[1:len(lst_flat)]]
     lst_flat = [gput.garray_to_cudandarray(i) for i in lst_flat]
+
+    # #for idx,i in enumerate(lst_flat):
+    #     lst[idx].shape = tuple(int(q) for q in i.shape)
+    #     if lst_flat[idx].stride != None:
+    #         lst_flat[idx].stride = tuple(int(q) for q in i.stride)
+    #         print "Stride was long.\n"
+    #     else:
+    #         print "Stride was None.\n"
+    #     print "sizeof(i): " + str(getsizeof(i))
+    # tmp = []
+    # for i in lst_flat:
+    #     print "garray_to_cudandarray_nested:i.shape:"  + str(i.shape)
+    #     tmp_ptr = gput.garray_to_cudandarray(i)
+    #     print "garray_to_cudandarray_nested:returned ptr:"  + str(tmp_ptr)
+    #     print "garray_to_cudandarray_nested:returned ptr:"  + str(tmp_ptr.shape)
+    #
+    #     tmp.append(tmp_ptr)
+    #     print "loop"
+    #for i in lst_flat:
+    #    print "sizeof(i): " + str(getsizeof(i))
+
+    #print "len(lst_flat[0]): " + str(len(lst_flat[0]))
+    #print "len(lst_flat[1]): " + str(len(lst_flat[1]))
+    #print "len(lst_flat[2]): " + str(len(lst_flat[2]))
     lst = unflatten(lst, lst_flat)
+    #print "here"
+    # lst = unflatten(lst, tmp)
+    # print "here1"
     return lst
 
 
@@ -175,13 +220,14 @@ def gnumpy_func_wrap(f):
     return gnumpy arrays."""
     def inner(*args):
         args = garray_to_cudandarray_nested(args)
+
         res = f(*args)
         if isinstance(res, list):
             res = cudandarray_to_garray_nested(res)
         else:
             # TODO: check for CudaNdArray instance instead
             if not isinstance(res, (float, np.ndarray)):
-                res = gput.cudandarray_to_garray(res)
+                res = gput.cudandarray_to_garray(res, copyif=True) #GWJ-True -allows copy of contiguous memory
         return res
     return inner
 
@@ -307,7 +353,8 @@ class ParameterSet(object):
         self._var_to_shape = {}
 
         if GPU:
-            self.flat = theano.sandbox.cuda.fvector('parameters')
+            #self.flat = theano.sandbox.cuda.fvector('parameters')
+            self.flat = theano.sandbox.cuda.basic_ops.vector('parameters', dtype=theano.config.floatX)
         else:
             self.flat = T.vector('parameters')
         if theano.config.compute_test_value in ('raise', 'warn'):
@@ -319,7 +366,7 @@ class ParameterSet(object):
             raise NotImplementedError('we do not know about groups yet')
 
         shape = (shape,) if isinstance(shape, int) or isinstance(shape, long) else shape
-        size = np.prod(shape)
+        size = int(np.prod(shape))
         start, stop = self._n_pars, self._n_pars + size
         self._n_pars = stop
         x = self.flat[start:stop].reshape(shape)
@@ -335,7 +382,8 @@ class ParameterSet(object):
     def view(self, variable, flat_arr=None):
         if flat_arr is None:
             flat_arr = self.data
-
+        print variable
+        print variable.shape
         start, stop = self._var_to_slice[variable]
         return flat_arr[start:stop].reshape(self._var_to_shape[variable])
 
@@ -732,7 +780,7 @@ def array_partition_views(array, partition):
     n_used = 0
     for path, shape in pathsshapes:
         item = dictlist.get(partition, path)
-        shape = (item,) if isinstance(item, (int, long)) else item
+        shape = (item,) if isinstance(item, int) else item
         size = int(np.prod(shape))
         dictlist.set_(views, path, array[n_used:n_used + size].reshape(shape))
         n_used += size
