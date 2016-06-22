@@ -35,6 +35,8 @@ For some examples, consult the source code of this module.
 
 
 import theano.tensor as T
+import numpy as np
+import theano
 
 from misc import distance_matrix
 
@@ -95,6 +97,33 @@ def squared(target, prediction):
     return (target - prediction) ** 2
 
 
+# This is the current suggested detect_nan implementation to
+# show you how it work.  That way, you can modify it for your
+# need.  If you want exactly this method, you can use
+# ``theano.compile.monitormode.detect_nan`` that will always
+# contain the current suggested version.
+
+def detect_nan(i, node, fn):
+    for output in fn.outputs:
+        if not isinstance(output[0], np.random.RandomState) and np.isnan(output[0]).any():
+            print '*** NaN detected ***'
+            theano.printing.debugprint(node)
+            print 'Inputs : %s' % [input[0] for input in fn.inputs]
+            print 'Outputs: %s' % [output[0] for output in fn.outputs]
+            break
+
+# def inspect_inputs(i, node, fn):
+#     print(i, node, "input(s) value(s):", [input[0] for input in fn.inputs], end='')
+#
+# def inspect_outputs(i, node, fn):
+#     print(" output(s) value(s):", [output[0] for output in fn.outputs])
+
+# x = theano.tensor.dscalar('x')
+# f = theano.function([x], [5 * x],
+#                     mode=theano.compile.MonitorMode(
+#                         pre_func=inspect_inputs,
+#                         post_func=inspect_outputs))
+from theano.compile import MonitorMode
 def absolute(target, prediction):
     """Return the element wise absolute difference between the ``target`` and
     the ``prediction``.
@@ -114,6 +143,12 @@ def absolute(target, prediction):
     res : Theano variable
         An array of the same shape as ``target`` and ``prediction``
         representing the pairwise distances."""
+
+    #t = T.scalar()
+    #func = prediction * t
+    #f = theano.function([], func, mode=MonitorMode(post_func=detect_nan))
+
+    #var = f(1.0)
     return abs(target - prediction)
 
 
@@ -271,6 +306,11 @@ def bern_bern_kl(X, Y):
         An array of the same size as ``target`` and ``prediction`` representing
         the pairwise divergences."""
     return X * T.log(X / Y) + (1 - X) * T.log((1 - X) / (1 - Y))
+
+def bern_bern_kl_grady(X, Y):
+    A = abs((X - .0005)/float(255))
+    B = abs((Y - .0005)/float(255))
+    return  A * T.log(A / B) + (1 - A) * T.log((1 - A) / (1 - B))
 
 
 def ncac(target, embedding):
