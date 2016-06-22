@@ -97,15 +97,15 @@ def cpu_tensor_to_gpu(tensor):
     the GPU."""
     name = '%s-gpu' % tensor.name
     if tensor.ndim == 0:
-        result = theano.sandbox.cuda.fscalar(name)
+        result = theano.sandbox.cuda.scalar(name)
     elif tensor.ndim == 1:
-        result = theano.sandbox.cuda.fvector(name)
+        result = theano.sandbox.cuda.vector(name)
     elif tensor.ndim == 2:
-        result = theano.sandbox.cuda.fmatrix(name)
+        result = theano.sandbox.cuda.matrix(name)
     elif tensor.ndim == 3:
-        result = theano.sandbox.cuda.ftensor3(name)
+        result = theano.sandbox.cuda.tensor3(name)
     elif tensor.ndim == 4:
-        result = theano.sandbox.cuda.ftensor4(name)
+        result = theano.sandbox.cuda.tensor4(name)
     else:
         raise ValueError('only up to dimension 4')
 
@@ -357,9 +357,7 @@ class ParameterSet(object):
             self.flat = theano.sandbox.cuda.basic_ops.vector('parameters', dtype=theano.config.floatX)
         else:
             self.flat = T.vector('parameters')
-        if theano.config.compute_test_value in ('raise', 'warn'):
-            self.flat.tag.test_value = np.empty(1024 ** 2).astype(
-                theano.config.floatX)
+
 
     def declare(self, shape, group=None):
         if group is not None:
@@ -370,10 +368,13 @@ class ParameterSet(object):
         start, stop = self._n_pars, self._n_pars + size
         self._n_pars = stop
         x = self.flat[start:stop].reshape(shape)
-        #if theano.config.compute_test_value in ('raise', 'warn'):
-        #    old_par_test_val = self.flat.tag.test_value
-        #    new_par_test_val = np.zeros(old_par_test_val.size + size)
-        #    x.tag.test_value = new_par_test_val
+        if theano.config.compute_test_value in ('raise', 'warn'):
+            try:
+                old_par_test_val = self.flat.tag.test_value
+                new_par_test_val = np.zeros(old_par_test_val.size + size, dtype=theano.config.floatX )
+                x.tag.test_value = new_par_test_val
+            except AttributeError:
+                pass
 
         self._var_to_slice[x] = (start, stop)
         self._var_to_shape[x] = shape
@@ -382,8 +383,8 @@ class ParameterSet(object):
     def view(self, variable, flat_arr=None):
         if flat_arr is None:
             flat_arr = self.data
-        print variable
-        print variable.shape
+        #print variable
+        #print variable.shape
         start, stop = self._var_to_slice[variable]
         return flat_arr[start:stop].reshape(self._var_to_shape[variable])
 
