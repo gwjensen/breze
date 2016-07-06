@@ -210,9 +210,9 @@ class Conv2d(Layer):
 
         #Don't consider padding as valid would have padding of 0, and half crops to correct size.
         self.output_height = ((inpt_height - filter_height) /
-                              subsample[0] + 1)
+                              self.subsample[0] + 1)
         self.output_width = ((inpt_width - filter_width) /
-                             subsample[1] + 1)
+                             self.subsample[1] + 1)
 
         # to use padding:
         # we should either pad the input before the convolution
@@ -220,8 +220,8 @@ class Conv2d(Layer):
         # or use "full" mode and then slice the output (what is done here)
         if self.padding[0] > 0:
             self.border_mode = "half"
-            self.output_height = int(ceil(inpt_height / subsample[0]))
-            self.output_width = int(ceil(inpt_width / subsample[1]))
+            self.output_height = int(ceil(self.inpt_height / self.subsample[0]))
+            self.output_width = int(ceil(self.inpt_width / self.subsample[1]))
 
         if not self.output_height > 0:
             raise ValueError('inpt height smaller than filter height')
@@ -243,7 +243,7 @@ class Conv2d(Layer):
         self.output_in = theano.tensor.nnet.conv2d(
            self.inpt,
            self.weights,
-           image_shape=(
+           input_shape=(
                self.n_samples,
                self.n_inpt,
                self.inpt_height,
@@ -272,6 +272,101 @@ class Conv2d(Layer):
 
         f = lookup(self.transfer, _transfer)
         self.output = f(self.output_in)
+
+class Conv2d_dilated(Layer):
+
+    def __init__(self, inpt, inpt_height, inpt_width, n_inpt,
+                 filter_height, filter_width,
+                 n_output, transfer='identity',
+                 n_samples=None,
+                 filter_dilation=(1,1),
+                 weights = None,
+                 declare=None, name=None):
+        self.inpt = inpt
+        self.inpt_height = inpt_height
+        self.inpt_width = inpt_width
+        self.n_inpt = n_inpt
+        self.padding = (1,1)
+
+        self.border_mode = "half"
+
+        self.filter_height = filter_height
+        self.filter_width = filter_width
+
+        self.n_output = n_output
+        self.transfer = transfer
+        self.n_samples = n_samples
+        self.subsample = (1,1)
+        self.filter_dilation = filter_dilation
+        self.weights = weights
+
+        # Don't consider padding as valid would have padding of 0, and half crops to correct size.
+        # self.output_height = ((inpt_height - filter_height) /
+        #                       self.subsample[0] + 1)
+        # self.output_width = ((inpt_width - filter_width) /
+        #                      self.subsample[1] + 1)
+
+        # to use padding:
+        # we should either pad the input before the convolution
+        # and then use "valid" mode
+        # or use "full" mode and then slice the output (what is done here)
+        if self.padding[0] > 0:
+            self.border_mode = "half"
+            self.output_height = int(ceil(inpt_height / self.subsample[0]))
+            self.output_width = int(ceil(inpt_width / self.subsample[1]))
+
+        if not self.output_height > 0:
+            raise ValueError('inpt height smaller than filter height')
+        if not self.output_width > 0:
+            raise ValueError('inpt width smaller than filter width')
+
+        super(Conv2d_dilated, self).__init__(declare=declare, name=name)
+
+    def _forward(self):
+        if self.weights == None:
+            self.weights = self.declare((
+                self.n_output, self.n_inpt,
+                self.filter_height, self.filter_width))
+        # self.bias = self.declare((self.n_output,)) #not to be used if using batch normalization
+        # self.output_in = dnn_conv(self.inpt,
+        #                           self.weights,
+        #                           border_mode=self.border_mode,
+        #                           subsample=self.subsample,
+        #                           conv_mode='conv')
+        self.output_in = theano.tensor.nnet.conv2d(
+            self.inpt,
+            self.weights,
+            input_shape=(
+                self.n_samples,
+                self.n_inpt,
+                self.inpt_height,
+                self.inpt_width
+            ),
+            filter_shape=(self.n_output,
+                          self.n_inpt,
+                          self.filter_height,
+                          self.filter_width),
+            subsample=self.subsample,
+            border_mode=self.border_mode,
+            filter_dilation=self.filter_dilation
+        )
+
+        # if self.border_mode == "full":
+        #    self.output_in = self.output_in[
+        #        :,
+        #        :,
+        #        self.output_in_height/2 - self.output_height/2 :
+        #        self.output_in_height/2 + self.output_height/2,
+        #        self.output_in_width/2 - self.output_width/2 :
+        #        self.output_in_width/2 + self.output_width/2
+        #    ]
+
+        print "simple.py:Conv:batch size,output_height, output,width, padding"
+        print(self.n_samples, self.output_height, self.output_width, self.padding[0])
+
+        f = lookup(self.transfer, _transfer)
+        self.output = f(self.output_in)
+
 
 # class Upsample2d(Layer):
 #
@@ -428,7 +523,6 @@ class Conv2d(Layer):
 #
 #         f = lookup(self.transfer, _transfer)
 #         self.output = f(self.output_in)
-
 class Deconv2d(Layer):
     #This function has a few hard coded values specific to MotionNet
     #Don't reverse the weights passed in, the function will do that.
@@ -502,7 +596,7 @@ class Deconv2d(Layer):
         self.output_in = theano.tensor.nnet.conv2d(
             self.inpt,
             self.weights,
-            image_shape=(
+            input_shape=(
                 self.n_samples,
                 self.n_inpt,
                 self.inpt_height,
@@ -527,6 +621,110 @@ class Deconv2d(Layer):
 
         f = lookup(self.transfer, _transfer)
         self.output = f(self.output_in)
+
+class Deconv2d_dilated(Layer):
+    #This function has a few hard coded values specific to MotionNet
+    #Don't reverse the weights passed in, the function will do that.
+    def __init__(self, inpt, inpt_height, inpt_width, n_inpt,
+                 filter_height, filter_width,
+                 n_output, weights=None, bias=None, transfer='identity',
+                 n_samples=None,
+                 filter_dilation=(1, 1),
+                 declare=None, name=None):
+        self.inpt = inpt
+        self.inpt_height = inpt_height
+        self.inpt_width = inpt_width
+        self.n_inpt = n_inpt
+
+        self.filter_height = filter_height
+        self.filter_width = filter_width
+
+        self.n_output = n_output
+        self.weights = weights
+        #self.bias = bias  #not to be used if using batch normalization
+
+        self.transfer = transfer
+        self.n_samples = n_samples
+        self.subsample = subsample
+
+        self.output_height = inpt_height * subsample[0]
+        self.output_width = inpt_width * subsample[1]
+
+        self.filter_dilation = filter_dilation
+
+
+        #  use "full" mode and then slice the output. This is mandatory with deconvolution.
+        self.border_mode = "half"
+        # self.output_in_height = ((inpt_height - filter_height +
+        #                           2*(filter_height - 1)) /
+        #                          subsample[0] + 1)
+        # self.output_in_width = ((inpt_width - filter_width +
+        #                          2*(filter_width - 1)) /
+        #                         subsample[1] + 1)
+
+        if not self.output_height > 0:
+            raise ValueError('inpt height smaller than filter height')
+        if not self.output_width > 0:
+            raise ValueError('inpt width smaller than filter width')
+
+        super(Deconv2d_dilated, self).__init__(declare=declare, name=name)
+
+    def _forward(self):
+        #commented this and the bias out because the model currently isn't using the same filters for both conv and deconv...
+        # if self.weights == None:
+        #     self.weights = self.declare((
+        #         self.n_output, self.n_inpt,
+        #         self.filter_height, self.filter_width))
+        # else:
+        #     #deconvolution is correlation so we reverse the weights. The first two columns as switched to account for going backwards.
+        #     #self.weights = self.weights.dimshuffle(1, 0, 2, 3)[:, :, ::-1, ::-1]
+        #     self.weights = (self.weights[:, :, ::-1, ::-1])
+
+        self.weights = self.declare((
+            self.n_output, self.n_inpt,
+            self.filter_height, self.filter_width))
+
+        #self.bias = self.declare((self.n_output,))  #not to be used if using batch normalization
+
+        # if self.bias == None:
+        #     self.bias = self.declare((self.n_output,))
+
+        # self.output_in = dnn_conv(self.inpt,
+        #                           self.weights,
+        #                           border_mode=self.border_mode,
+        #                           subsample=self.subsample,
+        #                           conv_mode='cross')
+        self.output_in = theano.tensor.nnet.conv2d(
+            self.inpt,
+            self.weights,
+            input_shape=(
+                self.n_samples,
+                self.n_inpt,
+                self.inpt_height,
+                self.inpt_width
+            ),
+            filter_shape=(self.n_output,
+                          self.n_inpt,
+                          self.filter_height,
+                          self.filter_width),
+            subsample=self.subsample,
+            border_mode=self.border_mode,
+            filter_flip = False,
+            filter_dilation = self.filter_dilation
+        )
+
+        #self.output_in = self.output_in[
+        #    :,
+        #    :,
+        #    self.output_in_height/2 - self.output_height/2 :
+        #    self.output_in_height/2 + self.output_height/2,
+        #    self.output_in_width/2 - self.output_width/2 :
+        #    self.output_in_width/2 + self.output_width/2
+        #]
+
+        f = lookup(self.transfer, _transfer)
+        self.output = f(self.output_in)
+
 
 
 class MaxPool2d(Layer):
