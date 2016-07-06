@@ -78,8 +78,10 @@ class BrezeWrapperBase(object):
     def _d_loss(self):
         """Return a theano expression for the gradient of the loss wrt the
         flat parameters of the model."""
-        return T.grad(self.exprs['loss'], self.parameters.flat)
-        #return T.grad(theano.gradient.grad_clip(self.exprs['loss'], -2, 2), self.parameters.flat)
+        #return T.grad(self.exprs['loss'], self.parameters.flat)
+        print "returning from derivative of loss\n"
+        return T.grad(theano.gradient.grad_clip(self.exprs['loss'], -2, 2), self.parameters.flat)
+        #return theano.gradient.grad_clip(T.grad(self.exprs['loss'], self.parameters.flat), -2, 2)
 
     def _make_optimizer(self, f, fprime, args, wrt=None, f_Hp=None, info=None):
         if isinstance(self.optimizer, (str, unicode)):
@@ -241,9 +243,9 @@ class SupervisedModel(Model, BrezeWrapperBase):
             inpts, d_loss, explicit_pars=True, mode=mode,
             givens=givens, on_unused_input=on_unused_input)
 
-        if self.gradient_clip_threshold is not None:
-            clipper = make_clipper(self.gradient_clip_threshold)
-            f_d_loss = clipper(f_d_loss)
+        #if self.gradient_clip_threshold is not None:
+        #    clipper = make_clipper(self.gradient_clip_threshold)
+        #    f_d_loss = clipper(f_d_loss)
         #f_d_loss = theano.gradient.grad_clip(f_d_loss, -2, 2)
 
         return f_loss, f_d_loss
@@ -441,9 +443,9 @@ class UnsupervisedModel(Model, BrezeWrapperBase):
             args, d_loss, explicit_pars=True, givens=givens, mode=mode,
             on_unused_input=on_unused_input)
 
-        if self.gradient_clip_threshold is not None:
-            clipper = make_clipper(self.gradient_clip_threshold)
-            f_d_loss = clipper(f_d_loss)
+        #if self.gradient_clip_threshold is not None:
+        #    clipper = make_clipper(self.gradient_clip_threshold)
+        #    f_d_loss = clipper(f_d_loss)
 
         return f_loss, f_d_loss
 

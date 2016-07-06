@@ -149,7 +149,7 @@ def absolute(target, prediction):
     #f = theano.function([], func, mode=MonitorMode(post_func=detect_nan))
 
     #var = f(1.0)
-    return abs(target - prediction)
+    return abs(target - T.clip(prediction,0,255))
 
 
 def cat_ce(target, prediction, eps=1e-8):
