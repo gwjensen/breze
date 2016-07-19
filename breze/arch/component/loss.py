@@ -75,6 +75,7 @@ def fmeasure(target, prediction, alpha=0.5):
     A = true_positives_approx.sum(axis=0)
     return 1-A/(alpha*n_pos+(1-alpha)*m_pos)
 
+
 def squared(target, prediction):
     """Return the element wise squared loss between the `target` and
     the `prediction`.
@@ -94,7 +95,7 @@ def squared(target, prediction):
     res : Theano variable
         An array of the same shape as ``target`` and ``prediction``
         representing the pairwise distances."""
-    return (target - prediction) ** 2
+    return (target - T.clip(prediction,0,255)) ** 2
 
 
 # This is the current suggested detect_nan implementation to

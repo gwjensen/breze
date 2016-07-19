@@ -104,6 +104,9 @@ class SupervisedLoss(Layer):
 
         self.sample_wise = self.coord_wise.sum(self.comp_dim)
 
+        #self.squared = T.maximum(self.coord_wise.norm(2, self.comp_dim), .000000001).mean() #this blows up with NaNs
+        self.squared = T.sqrt(T.maximum(self.sample_wise, .000000001)).mean() #This one doesn't, but I have to make the loss function squared not absolute
+
         self.total = self.sample_wise.mean()
 
 # class Conv2d(Layer):
