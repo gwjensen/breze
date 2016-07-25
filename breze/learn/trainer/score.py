@@ -53,7 +53,7 @@ class MinibatchScore(object):
 
     def __call__(self, f_score, *data):
         """"Return the score of the data."""
-        batches = iter_minibatches(data, self.max_samples, self.sample_dims, 1)
+        batches = iter_minibatches(data, batch_size= self.max_samples, dims=self.sample_dims,n_cycles=1,discard_illsized_batch=True)
         score = 0.
         seen_samples = 0.
         for batch in batches:

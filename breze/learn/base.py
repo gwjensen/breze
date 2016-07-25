@@ -263,14 +263,14 @@ class SupervisedModel(Model, BrezeWrapperBase):
             raise ValueError('need strictly positive batch size')
         else:
             if imp_weight is not None:
-                data = iter_minibatches([X, Z, imp_weight], self.batch_size,
-                                        list(self.sample_dim) + [self.sample_dim[0]])
+                data = iter_minibatches([X, Z, imp_weight], batch_size=self.batch_size,
+                                        dims=list(self.sample_dim) + [self.sample_dim[0]],discard_illsized_batch=True)
                 data = ((cast_array_to_local_type(x),
                          cast_array_to_local_type(z),
                          cast_array_to_local_type(w)) for x, z, w in data)
             else:
-                data = iter_minibatches([X, Z], self.batch_size,
-                                        self.sample_dim)
+                data = iter_minibatches([X, Z], batch_size=self.batch_size,
+                                        dims=self.sample_dim, discard_illsized_batch=True)
 
                 data = ((cast_array_to_local_type(x),
                          cast_array_to_local_type(z)) for x, z in data)
@@ -516,7 +516,7 @@ class UnsupervisedModel(Model, BrezeWrapperBase):
         elif batch_size < 1:
             raise ValueError('need strictly positive batch size')
         else:
-            data = iter_minibatches(item, self.batch_size, sample_dim)
+            data = iter_minibatches(item, batch_size=self.batch_size, sims=sample_dim,discard_illsized_batch=True)
         if use_imp_weight:
             data = ((cast_array_to_local_type(x), cast_array_to_local_type(w))
                     for x, w in data)
